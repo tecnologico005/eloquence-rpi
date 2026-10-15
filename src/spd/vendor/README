@@ -1,0 +1,12 @@
+Vendored from speech-dispatcher 0.12.0 (https://github.com/brailcom/speechd,
+commit 4a802ebbf93c838012a66a8edf5fbd7a373efcbc, src/modules and src/common):
+
+  module_main.c, module_readline.c, module_process.c, spd_module_main.h
+      BSD-licensed helper library for writing speech-dispatcher output modules
+      (Copyright Samuel Thibault and others; licence text in each file).
+  spd_audio.h
+      GNU LGPL 2.1 or later (Copyright Brailcom, o.p.s.; Samuel Thibault).
+
+They are included because Debian-based distributions, Raspberry Pi OS among
+them, do not ship spd_module_main.h or libspeechd_module. The files are
+unmodified.

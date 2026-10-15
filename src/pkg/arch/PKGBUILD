@@ -1,0 +1,37 @@
+# Maintainer: Stanislaw Przedzinkowski <stasprzecinek@gmail.com>
+pkgname=eloquence
+pkgver=6.1.0
+pkgrel=1
+pkgdesc='Eloquence V6.1 text-to-speech engine via QEMU ARM emulation'
+arch=('x86_64')
+license=('MIT')
+url='https://github.com/Mudb0y/eloquence'
+depends=('qemu-user-binfmt')
+makedepends=(
+  'arm-linux-gnueabihf-gcc'
+  'qemu-user'
+  'speech-dispatcher'
+  'glib2'
+  'pkgconf'
+  'git'
+)
+optdepends=(
+  'speech-dispatcher: speech-dispatcher integration'
+  'curl: required by eloquence-setup'
+  'unzip: required by eloquence-setup'
+  'python: required by eloquence-setup'
+  'arm-linux-gnueabihf-gcc: required by eloquence-setup'
+  'kmod: required by eloquence-setup'
+)
+source=("git+https://github.com/Mudb0y/eloquence.git#tag=v${pkgver}")
+sha256sums=('SKIP')
+
+build() {
+  cd "$srcdir/eloquence"
+  make all sd_eloquence
+}
+
+package() {
+  cd "$srcdir/eloquence"
+  make install DESTDIR="$pkgdir" LIBDIR=/usr/lib
+}

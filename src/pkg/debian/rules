@@ -1,0 +1,31 @@
+#!/usr/bin/make -f
+# The bridge is a 32-bit ARM program. How it is run depends on the machine:
+#   amd64 : under qemu-arm
+#   arm64 : natively, needing the armhf C and C++ runtime (multiarch)
+#   armhf : natively, with the system's own libraries
+DEB_HOST_ARCH := $(shell dpkg-architecture -qDEB_HOST_ARCH)
+ifeq ($(DEB_HOST_ARCH),amd64)
+ARCH_DEPENDS = qemu-user-binfmt
+else ifeq ($(DEB_HOST_ARCH),arm64)
+ARCH_DEPENDS = libc6:armhf, libstdc++6:armhf
+else
+ARCH_DEPENDS = libstdc++6
+endif
+
+%:
+	dh $@
+
+override_dh_gencontrol:
+	dh_gencontrol -- -V"eloquence:Arch-Depends=$(ARCH_DEPENDS)"
+
+override_dh_auto_build:
+	$(MAKE) all sd_eloquence
+
+override_dh_auto_install:
+	$(MAKE) install DESTDIR=debian/eloquence
+
+override_dh_strip:
+	dh_strip --exclude=eci-bridge
+
+override_dh_shlibdeps:
+	dh_shlibdeps --exclude=eci-bridge
