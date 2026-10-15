@@ -40,6 +40,14 @@ else
 fi
 NATIVE="$DATADIR/native"
 
+# 64-bit userland? (uname -m reports the kernel: a 32-bit Raspberry Pi OS can run
+# on a 64-bit kernel, so ask dpkg first)
+case "$(dpkg --print-architecture 2>/dev/null || true)" in
+    arm64) IS64=1 ;;
+    armhf) IS64=0 ;;
+    *)     if [ "$HOST_ARCH" = aarch64 ]; then IS64=1; else IS64=0; fi ;;
+esac
+
 usage() {
     cat <<'EOF'
 Usage: eloquence-setup [OPTIONS]
@@ -80,7 +88,7 @@ check_deps() {
     done
     if [ "$MODE" = native ]; then
         # A compiler that produces 32-bit ARM code for the small SJLJ stub library
-        if [ "$HOST_ARCH" = aarch64 ]; then
+        if [ "$IS64" = 1 ]; then
             command -v arm-linux-gnueabihf-gcc &>/dev/null || \
                 missing+=("arm-linux-gnueabihf-gcc (gcc-arm-linux-gnueabihf)")
         else
@@ -124,7 +132,7 @@ check_native_env() {
         echo "  sudo apt install libc6:armhf libstdc++6:armhf" >&2
         exit 1
     fi
-    if [ "$HOST_ARCH" = aarch64 ]; then
+    if [ "$IS64" = 1 ] || [ "$HOST_ARCH" = aarch64 ]; then
         local pgsz
         pgsz="$(getconf PAGESIZE)"
         if [ "$pgsz" != 4096 ]; then
@@ -244,7 +252,7 @@ do_uninstall() {
 do_native_install() {
     local rootfs="$CACHE_DIR/rootfs"
     local cc=gcc
-    [ "$HOST_ARCH" = aarch64 ] && cc=arm-linux-gnueabihf-gcc
+    [ "$IS64" = 1 ] && cc=arm-linux-gnueabihf-gcc
 
     echo ""
     echo "=== Step 2: Patching libraries for native use ==="

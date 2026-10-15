@@ -152,7 +152,9 @@ if [ "$DEB_ARCH" = arm64 ]; then
         priv dpkg --add-architecture armhf
     fi
     priv env DEBIAN_FRONTEND=noninteractive apt-get update
-    PKGS+=(gcc-arm-linux-gnueabihf libc6:armhf libstdc++6:armhf)
+    # libc6-dev-armhf-cross lleva las cabeceras de C del compilador cruzado; en Debian
+    # solo es "Recommends" de gcc-arm-linux-gnueabihf, y aquí no se instalan recomendados
+    PKGS+=(gcc-arm-linux-gnueabihf libc6-dev-armhf-cross libc6:armhf libstdc++6:armhf)
 else
     priv env DEBIAN_FRONTEND=noninteractive apt-get update
 fi
@@ -162,6 +164,23 @@ priv env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommen
 # ----------------------------------------------------------------- 2. compilar
 
 say "2/5 Compilando"
+
+# Comprobación previa: el compilador del puente (32 bits ARM) debe poder compilar
+# un programa que use las mismas cabeceras que el puente.
+preflight_cc() {
+    local cc="$1" t
+    t="$(mktemp -d /tmp/eloquence-cc.XXXXXX)"
+    printf '#include <stdio.h>\n#include <stdint.h>\n#include <dlfcn.h>\n#include <pthread.h>\n#include <sys/socket.h>\nint main(void){return 0;}\n' > "$t/t.c"
+    if ! "$cc" -o "$t/t" "$t/t.c" -ldl -lpthread 2> "$t/err"; then
+        cat "$t/err" >&2
+        rm -rf "$t"
+        die "El compilador '$cc' no puede compilar programas C (faltan cabeceras o librerías de desarrollo). Revisa la salida de arriba."
+    fi
+    rm -rf "$t"
+}
+if [ "$DRY" != 1 ]; then
+    if [ "$DEB_ARCH" = arm64 ]; then preflight_cc arm-linux-gnueabihf-gcc; else preflight_cc gcc; fi
+fi
 
 BUILD_DIR="$(mktemp -d /tmp/eloquence-build.XXXXXX)"
 cleanup() { rm -rf "$BUILD_DIR"; }
@@ -173,7 +192,10 @@ if [ "$DRY" = 1 ]; then
 else
     cp -a "$SRC"/. "$BUILD_DIR"/
     make -C "$BUILD_DIR" clean >/dev/null 2>&1 || true
-    make -C "$BUILD_DIR" -j"$(nproc)" all sd_eloquence
+    if ! make -C "$BUILD_DIR" -j"$(nproc)" all sd_eloquence; then
+        warn "La compilación en paralelo falló; repito en serie para ver el primer error..."
+        make -C "$BUILD_DIR" all sd_eloquence
+    fi
     for f in build/eci-bridge build/libeci.so build/eloquence build/sd_eloquence; do
         [ -f "$BUILD_DIR/$f" ] || die "La compilación no produjo $f"
     done

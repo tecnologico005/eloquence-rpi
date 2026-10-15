@@ -19,7 +19,14 @@ ifndef BRIDGE_MODE
 endif
 
 ifeq ($(BRIDGE_MODE),native)
-  ifneq (,$(filter aarch64 arm64,$(HOST_ARCH)))
+  # dpkg knows the userland architecture; uname -m reports the kernel's (a 32-bit
+  # Raspberry Pi OS on a 64-bit kernel says aarch64 but is armhf).
+  DEB_ARCH := $(shell dpkg --print-architecture 2>/dev/null)
+  ifeq ($(DEB_ARCH),arm64)
+    ARM_CC = arm-linux-gnueabihf-gcc
+  else ifeq ($(DEB_ARCH),armhf)
+    ARM_CC = gcc
+  else ifneq (,$(filter aarch64 arm64,$(HOST_ARCH)))
     ARM_CC = arm-linux-gnueabihf-gcc
   else
     ARM_CC = gcc
